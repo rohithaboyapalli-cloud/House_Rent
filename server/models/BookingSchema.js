@@ -31,13 +31,19 @@ const bookingSchema = new mongoose.Schema(
 
     bookingStatus: {
       type: String,
-      enum: ["Pending", "Confirmed", "Cancelled"],
+      enum: ["Pending", "Accepted", "Rejected"],
       default: "Pending",
     },
   },
   {
     timestamps: true,
   }
+);
+
+// ✅ Put the console.log AFTER the schema is created
+console.log(
+  "Booking enum values:",
+  bookingSchema.path("bookingStatus").enumValues
 );
 
 module.exports = mongoose.model("Booking", bookingSchema);

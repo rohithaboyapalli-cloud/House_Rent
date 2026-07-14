@@ -1,3 +1,4 @@
+const User = require("../models/UserSchema");
 const jwt = require("jsonwebtoken");
 
 const protect = async (req, res, next) => {
@@ -20,7 +21,17 @@ const protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = decoded;
+// Fetch the latest user details from the database
+const user = await User.findById(decoded.id).select("-password");
+
+if (!user) {
+  return res.status(401).json({
+    success: false,
+    message: "User not found",
+  });
+}
+
+req.user = user;
 
     next();
   } catch (error) {

@@ -1,4 +1,5 @@
 const Property = require("../models/PropertySchema");
+const Booking = require("../models/BookingSchema");
 
 // =====================
 // Add Property
@@ -16,17 +17,29 @@ const addProperty = async (req, res) => {
       images,
     } = req.body;
 
+  console.log("User:", req.user);
+    console.log("Approved:", req.user.isApproved);
+
+    // Owner approval check
+    if (!req.user.isApproved) {
+      return res.status(403).json({
+        success: false,
+        message: "Your owner account is waiting for admin approval.",
+      });
+    }
     const property = await Property.create({
-      owner: req.user.id,
-      title,
-      description,
-      location,
-      rentAmount,
-      propertyType,
-      furnishingStatus,
-      amenities,
-      images,
-    });
+  owner: req.user.id,
+  title,
+  description,
+  location,
+  rentAmount,
+  propertyType,
+  furnishingStatus,
+  amenities,
+  images: req.files
+    ? req.files.map((file) => file.path)
+    : [],
+});
 
     res.status(201).json({
       success: true,
@@ -146,7 +159,6 @@ const deleteProperty = async (req, res) => {
   }
 };
 
-const Booking = require("../models/BookingSchema");
 
 // =====================
 // Get Bookings for Owner's Properties
@@ -179,10 +191,58 @@ const getOwnerBookings = async (req, res) => {
   }
 };
 
+
+
+// Accept / Reject Booking
+const updateBookingStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const booking = await Booking.findById(req.params.id).populate("property");
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // Check property ownership
+    if (booking.property.owner.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access Denied",
+      });
+    }
+
+    booking.bookingStatus = status;
+    await booking.save();
+
+    // If rejected, make property available again
+    if (status === "Rejected") {
+      booking.property.status = "Available";
+      await booking.property.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Booking ${status}`,
+      booking,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   addProperty,
   getMyProperties,
   updateProperty,
   deleteProperty,
   getOwnerBookings,
+  updateBookingStatus,
 };
